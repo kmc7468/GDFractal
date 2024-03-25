@@ -1,0 +1,9 @@
+bin/
+[Tt]est*/
+[Tt]est*.*
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+cpp.hint
