@@ -9,5 +9,13 @@ int WINAPI _tWinMain(HINSTANCE instance, HINSTANCE, LPTSTR, int) {
 		return 1;
 	}
 
-	return RunWinAPIMessageLoop();
+	try {
+		Window mainWindow(_T("GDFractal"), 1280, 720);
+		mainWindow.Show();
+
+		return RunWinAPIMessageLoop();
+	} catch (...) {
+		MessageBox(nullptr, _T("알 수 없는 오류가 발생했습니다."), _T("오류"), MB_OK | MB_ICONERROR);
+		return 1;
+	}	
 }
