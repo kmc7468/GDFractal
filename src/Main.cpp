@@ -2,6 +2,7 @@
 #include <tchar.h>
 
 import Window;
+import MainWindow;
 
 int WINAPI _tWinMain(HINSTANCE instance, HINSTANCE, LPTSTR, int) {
 	if (!InitializeWinAPI(instance)) {
@@ -10,7 +11,7 @@ int WINAPI _tWinMain(HINSTANCE instance, HINSTANCE, LPTSTR, int) {
 	}
 
 	try {
-		Window mainWindow(_T("GDFractal"), 1280, 720);
+		MainWindow mainWindow;
 		mainWindow.Show();
 
 		return RunWinAPIMessageLoop();
