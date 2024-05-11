@@ -12,54 +12,9 @@ export module Window;
 
 HINSTANCE g_Instance; // NOTE: static을 붙이면 같은 모듈에 있더라도 함수끼리 공유되지 않는데, 이유를 모르겠다.
 
-static LRESULT CALLBACK WindowProcedure(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-	switch (message) {
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		return 0;
-
-	default:
-		return DefWindowProc(window, message, wParam, lParam);
-	}
-}
-
-export bool InitializeWinAPI(HINSTANCE instance) {
-	assert(g_Instance == nullptr);
-	assert(instance != nullptr);
-
-	g_Instance = instance;
-
-	const WNDCLASSEX windowClass = {
-		.cbSize = sizeof(WNDCLASSEX),
-		.style = CS_HREDRAW | CS_VREDRAW,
-		.lpfnWndProc = WindowProcedure,
-		.hInstance = instance,
-		.hIcon = LoadIcon(nullptr, IDI_APPLICATION),
-		.hCursor = LoadCursor(nullptr, IDC_ARROW),
-		.lpszClassName = _T("Window"),
-	};
-	if (RegisterClassEx(&windowClass) == 0)
-		return false;
-
-	return true;
-}
-
-export int RunWinAPIMessageLoop() {
-	assert(g_Instance != nullptr);
-
-	MSG message;
-	while (GetMessage(&message, nullptr, 0, 0)) {
-		TranslateMessage(&message);
-		DispatchMessage(&message);
-	}
-
-	return static_cast<int>(message.wParam);
-}
-
-class Graphics;
-
 export class Window {
 	friend class Graphics;
+	friend LRESULT CALLBACK WindowProcedure(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
 	HWND m_Handle;
@@ -81,7 +36,7 @@ public:
 			nullptr,
 			nullptr,
 			g_Instance,
-			nullptr
+			this
 		);
 		if (m_Handle == nullptr)
 			throw std::runtime_error("Failed to create window");
@@ -134,9 +89,45 @@ protected:
 
 		return *m_Graphics;
 	}
+
+	virtual void OnPaint() {}
+
+private:
+	void OnResize(int newWidth, int newHeight);
 };
 
+LRESULT CALLBACK WindowProcedure(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+	const auto windowPtr = reinterpret_cast<Window*>(GetWindowLongPtr(window, GWLP_USERDATA));
+
+	switch (message) {
+	case WM_CREATE:
+		SetWindowLongPtr(
+			window,
+			GWLP_USERDATA,
+			reinterpret_cast<LONG_PTR>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams)
+		);
+		return 0;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+
+	case WM_PAINT:
+		windowPtr->OnPaint();
+		return 0;
+
+	case WM_SIZE:
+		windowPtr->OnResize(LOWORD(lParam), HIWORD(lParam));
+		return 0;
+
+	default:
+		return DefWindowProc(window, message, wParam, lParam);
+	}
+}
+
 export class Graphics final {
+	friend class Window;
+
 private:
 	ID2D1Factory* m_Factory;
 	ID2D1HwndRenderTarget* m_RenderTarget;
@@ -215,4 +206,50 @@ public:
 
 		m_RenderTarget->EndDraw();
 	}
+
+private:
+	void Resize(int newWidth, int newHeight) {
+		assert(m_RenderTarget != nullptr);
+
+		m_RenderTarget->Resize(D2D1::SizeU(newWidth, newHeight));
+	}
 };
+
+void Window::OnResize(int newWidth, int newHeight) {
+	if (m_Graphics) {
+		m_Graphics->Resize(newWidth, newHeight);
+	}
+}
+
+export bool InitializeWinAPI(HINSTANCE instance) {
+	assert(g_Instance == nullptr);
+	assert(instance != nullptr);
+
+	g_Instance = instance;
+
+	const WNDCLASSEX windowClass = {
+		.cbSize = sizeof(WNDCLASSEX),
+		.style = CS_HREDRAW | CS_VREDRAW,
+		.lpfnWndProc = WindowProcedure,
+		.hInstance = instance,
+		.hIcon = LoadIcon(nullptr, IDI_APPLICATION),
+		.hCursor = LoadCursor(nullptr, IDC_ARROW),
+		.lpszClassName = _T("Window"),
+	};
+	if (RegisterClassEx(&windowClass) == 0)
+		return false;
+
+	return true;
+}
+
+export int RunWinAPIMessageLoop() {
+	assert(g_Instance != nullptr);
+
+	MSG message;
+	while (GetMessage(&message, nullptr, 0, 0)) {
+		TranslateMessage(&message);
+		DispatchMessage(&message);
+	}
+
+	return static_cast<int>(message.wParam);
+}
